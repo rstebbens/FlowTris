@@ -1,0 +1,603 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v3.9</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:20px;background:#0c1423;color:#e8effa;font:14px system-ui,Arial}main{max-width:1250px;margin:auto}h1{margin:0;color:#6ee7b7}p{color:#b4c3d7}.bar,.stats,.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.panel,.metric{background:#19283e;border:1px solid #344860;border-radius:12px;padding:12px;margin:10px 0}.metric{flex:1;min-width:105px}.metric b{display:block;font-size:22px;color:white}button,select{background:#304b6d;color:#fff;border:1px solid #6886a7;border-radius:7px;padding:9px 12px;cursor:pointer}button:hover{background:#43688e}button:disabled{opacity:.35;cursor:not-allowed}.primary{background:#087e6b}canvas{display:block;width:100%;height:auto;background:#101b2c;border-radius:8px;touch-action:manipulation}label{display:inline-flex;align-items:center;gap:7px}input{accent-color:#6ee7b7}.hint{font-size:12px;color:#a7b9d2}.staff{display:flex;gap:12px;flex-wrap:wrap}.staff>div{display:flex;align-items:center;gap:6px}#notice{color:#fbbf24;min-height:20px}#touch{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}@media(min-width:900px){#touch{display:none}}
+
+.board-wrap{position:relative;isolation:isolate}
+.column-staff{position:absolute;top:9.8%;width:16.8%;z-index:2;display:flex;align-items:center;justify-content:center;gap:5px;pointer-events:none}
+.column-staff>*{pointer-events:auto}.column-staff button{padding:3px 8px;font-size:14px;line-height:1.15;min-width:27px}.column-staff .people-icons{font-size:clamp(9px,1.15vw,15px);white-space:nowrap;letter-spacing:-3px;line-height:1.3;text-align:center;min-width:18px;flex:0 1 auto;overflow:hidden}
+.column-staff[data-stage="0"]{left:19.2%}.column-staff[data-stage="1"]{left:37.35%}.column-staff[data-stage="2"]{left:55.5%}
+.team-area{font-size:12px}.team-area .hint{margin-top:2px}
+
+.under-board{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:18px;align-items:start;margin-top:12px}
+.under-board .staff{margin-top:12px}.production-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;align-content:start}
+.production-stats .metric{margin:0;min-width:0;padding:9px 8px;font-size:11px;line-height:1.3}
+.production-stats .metric b{font-size:20px;margin-top:5px}
+.production-stats-title{grid-column:1/-1;font-size:12px;font-weight:800;color:#6ee7b7;letter-spacing:.09em}
+@media(max-width:850px){.under-board{grid-template-columns:1fr}.production-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.game-overlay{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,9,21,.88);backdrop-filter:blur(5px);animation:overlay-in .3s ease-out}
+.game-overlay[hidden]{display:none}
+.game-over-card{text-align:center;max-width:580px;width:min(96vw,580px);max-height:calc(100dvh - 32px);overflow-y:auto;padding:20px 22px;border:2px solid #fb7185;border-radius:20px;background:linear-gradient(145deg,#331e38,#14233a);box-shadow:0 0 65px rgba(251,113,133,.24),0 15px 50px #0009;position:relative}
+.game-over-card::before{content:'✦  ◆  ✦  ◆  ✦';position:absolute;top:8px;left:0;width:100%;font-size:12px;letter-spacing:24px;color:#fb7185;opacity:.55}
+.game-over-card h2{font-size:clamp(34px,6vw,62px);line-height:1.05;margin:14px 0 10px;letter-spacing:3px;color:#fb7185;text-shadow:0 3px 0 #681d42,0 0 25px #fb718555}
+.game-over-card p{margin:8px 0 16px;color:#e8effa}
+.game-over-card .final-score{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0}
+.game-over-card .final-score div{background:#ffffff13;padding:10px 5px;border-radius:10px;min-width:0;font-size:12px}
+.game-over-card .final-score strong{display:block;font-size:clamp(18px,4vw,26px);color:#6ee7b7}
+.game-over-card button{font-weight:800;font-size:16px;background:#0e9d82;border-color:#6ee7b7;padding:12px 28px}
+@keyframes overlay-in{from{opacity:0;transform:scale(1.015)}to{opacity:1;transform:scale(1)}}
+
+.help-button{border-color:#6ee7b7;color:#9fffe2;background:#16443e;font-weight:700}
+.howto-backdrop{position:fixed;inset:0;background:rgba(3,8,18,.84);z-index:100;display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(5px)}
+.howto-backdrop[hidden]{display:none}
+.howto-card{width:min(850px,100%);max-height:90vh;overflow-y:auto;background:#17263c;border:1px solid #50718b;border-radius:18px;padding:24px 28px;box-shadow:0 25px 90px #000a}
+.howto-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.howto-head h2{font-size:32px;margin:2px 0 8px;color:#e9f8ff}.howto-eyebrow{color:#6ee7b7;font-size:11px;font-weight:800;letter-spacing:.18em}.howto-intro{font-size:15px;line-height:1.55;color:#e2ecfa}
+.howto-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}.howto-grid>div{background:#20334d;border:1px solid #3a536d;padding:13px 15px;border-radius:10px}.howto-card h3{font-size:14px;color:#6ee7b7;margin:0 0 8px}.howto-grid p{font-size:13px;line-height:1.5;margin:0}.howto-card kbd{background:#0e1a2d;border:1px solid #627b98;border-radius:4px;padding:2px 5px;color:#fff}.value-legend{display:flex;gap:10px 17px;flex-wrap:wrap;margin:12px 0 18px}.value-legend span{font-size:12px;white-space:nowrap}.value-legend i{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:5px}.howto-footer{display:flex;justify-content:flex-end;margin-top:18px}.howto-footer button{padding:11px 20px;font-weight:700}
+@media(max-width:600px){.howto-grid{grid-template-columns:1fr}.howto-card{padding:18px}.howto-head h2{font-size:26px}}
+
+/* Compact 1080p overrides: flow controls above playfield, scoreboard below */
+body{padding:10px 14px}
+.bar{margin-bottom:6px}.bar h1{font-size:27px}.bar p{margin:5px 0 8px;font-size:12px}
+.panel{margin:6px 0;padding:9px 11px}
+.top-scoreboard{display:grid;grid-template-columns:1.1fr repeat(8,minmax(0,1fr));gap:7px;margin:8px 0 7px}
+.top-scoreboard .metric{min-width:0;margin:0;padding:8px 10px;font-size:11px;line-height:1.25}
+.top-scoreboard .metric b{font-size:21px;margin-top:4px;font-variant-numeric:tabular-nums}
+.top-scoreboard .timer-metric{border-color:#40bba3}.top-scoreboard .timer-metric b{color:#6ee7b7;font-size:25px}
+.lower-controls{margin-top:7px;margin-bottom:8px}.control-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.control-heading strong{font-size:11px;letter-spacing:.1em;color:#6ee7b7}
+.compact-controls{display:flex;align-items:center;gap:9px 13px;flex-wrap:wrap}
+.compact-controls label{font-size:12px;gap:5px;white-space:nowrap}.compact-controls input[type=range]{width:96px}
+.compact-controls button,.compact-controls select{padding:7px 10px;font-size:12px}
+.release-readout,.mode-readout{font-size:12px;color:#a7b9d2;white-space:nowrap}
+.release-readout b,.mode-readout b{color:#fff}
+#notice{font-size:12px;min-height:0}
+@media(max-width:950px){.top-scoreboard{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:550px){.top-scoreboard{grid-template-columns:repeat(2,minmax(0,1fr))}.compact-controls input[type=range]{width:90px}}
+/* On narrow screens the flow controls fold away, leaving the board visible. */
+#flowControls summary{list-style:none}
+#flowControls summary::-webkit-details-marker{display:none}
+#flowControls .collapse-cue{display:none}
+@media(max-width:700px){
+ #flowControls{padding:8px 10px}
+ #flowControls summary{cursor:pointer;user-select:none;margin-bottom:0;min-height:28px}
+ #flowControls summary:focus-visible{outline:2px solid #6ee7b7;outline-offset:3px}
+ #flowControls .collapse-cue{display:inline;font-size:13px;color:#a7b9d2}
+ #flowControls:not([open]) .collapse-cue{display:inline-block;transform:rotate(-90deg)}
+ #flowControls[open] .compact-controls{padding-top:10px}
+ #flowControls .compact-controls{gap:10px}
+}
+@media(min-width:701px){#flowControls[open] .compact-controls{display:flex}}
+
+
+.leaderboard{margin-top:0}.leaderboard .howto-footer{gap:10px}.leaderboard .howto-footer #clearLeaderboard{background:#304b6d}.leaderboard-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.leaderboard h2{margin:0;color:#6ee7b7;font-size:15px}.leaderboard table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}.leaderboard th,.leaderboard td{text-align:left;padding:7px 9px;border-bottom:1px solid #344860}.leaderboard th{color:#a9bdd6;font-size:11px}.leaderboard input{max-width:160px;background:#101b2c;border:1px solid #6886a7;color:white;border-radius:6px;padding:8px}.leaderboard-entry{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px;margin:10px 0}.leaderboard-entry[hidden]{display:none}.leaderboard-entry label{color:#dce7f6}
+@media(max-width:650px){.leaderboard table{font-size:11px}.leaderboard th,.leaderboard td{padding:5px}}
+.initials-boxes{display:flex;gap:7px}.initial-box{width:43px!important;max-width:43px!important;height:49px;text-align:center;font-size:26px;font-weight:800;font-family:monospace;padding:4px!important;text-transform:uppercase;border:2px solid #6886a7!important}.initial-box:focus{outline:2px solid #6ee7b7;outline-offset:2px}
+
+/* The title remains visible when the mobile-landscape header is folded. */
+.game-header{margin:0 0 4px}
+.game-header-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none;cursor:default}
+.game-header-summary::-webkit-details-marker{display:none}
+.game-header-brand strong{font-size:27px;color:#6ee7b7;letter-spacing:.015em}
+.game-header-brand small{font-size:14px;color:#9fb2cd}
+.header-collapse-cue{display:none;color:#a7b9d2}
+.game-header-content{margin:2px 0 0}
+.game-header-content p{margin:2px 0 6px}
+.header-actions{display:flex;gap:6px;flex-wrap:wrap}
+@media (orientation:landscape) and (max-height:600px) and (max-width:1100px){
+ body{padding:5px 8px}
+ .game-header-summary{cursor:pointer;min-height:28px}
+ .game-header-summary:focus-visible{outline:2px solid #6ee7b7;outline-offset:2px}
+ .game-header-brand strong{font-size:20px}
+ .game-header-brand small{font-size:11px}
+ .header-collapse-cue{display:inline}
+ .game-header:not([open]) .header-collapse-cue{transform:rotate(-90deg)}
+ .game-header-content{padding:4px 0 2px}
+ .game-header-content p{font-size:11px}
+ .header-actions button{padding:5px 8px;font-size:11px}
+ .panel{margin:4px 0;padding:6px 8px}
+ .lower-controls{margin:3px 0}
+ .top-scoreboard{margin:5px 0;gap:4px}
+ .top-scoreboard .metric{padding:5px 6px}
+ .top-scoreboard .metric b{font-size:16px}
+ .top-scoreboard .timer-metric b{font-size:19px}
+ #flowControls summary{cursor:pointer;min-height:24px;margin-bottom:0}
+ #flowControls .collapse-cue{display:inline-block}
+ #flowControls:not([open]) .collapse-cue{transform:rotate(-90deg)}
+ #flowControls[open] .compact-controls{padding-top:8px}
+}
+
+#touch.manual-hidden{display:none}
+/* Mobile-first play experience: the board remains interactive, but never miniaturised. */
+.board-scroll{overflow:visible}.mobile-staff,.rotate-hint{display:none}
+.more-stats{display:contents}.more-stats>summary{display:none}.extra-stats{display:contents}
+@media(max-width:850px){
+ body{padding:7px 9px}
+ .game-header-brand strong{font-size:23px}
+ .game-header-summary{cursor:pointer;min-height:32px}
+ .header-collapse-cue{display:block}
+ .game-header:not([open]) .header-collapse-cue{transform:rotate(-90deg)}
+ .game-header-content p{font-size:12px}
+ .header-actions button{padding:7px 9px}
+ .game-panel{padding:5px;margin:5px 0}
+ .board-scroll{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .board-wrap{min-width:820px}
+ .column-staff{display:none}
+ .mobile-staff{display:block;background:#19283e;border:1px solid #344860;border-radius:12px;padding:9px;margin:6px 0}
+ .mobile-staff-head{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#6ee7b7;margin-bottom:7px}
+ .mobile-staff-head span{color:#a7b9d2}
+ .mobile-staff-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .mobile-stage{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;background:#101b2c;border-radius:9px;padding:7px 3px}
+ .mobile-stage strong{flex-basis:100%;text-align:center;font-size:11px;color:#cbd9ed}
+ .mobile-stage button{min-width:40px;min-height:44px;padding:7px;font-size:20px;line-height:1}
+ .mobile-stage .people-icons{font-size:13px;letter-spacing:-4px;white-space:nowrap;min-width:19px;text-align:center}
+ .top-scoreboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:6px 0}
+ .top-scoreboard>.metric{padding:8px 7px;font-size:11px}
+ .top-scoreboard>.metric b{font-size:21px}
+ .top-scoreboard .timer-metric b{font-size:23px}
+ .more-stats{display:block;grid-column:1/-1;background:#19283e;border:1px solid #344860;border-radius:9px}
+ .more-stats>summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:9px 12px;font-size:12px;color:#a7b9d2}
+ .more-stats:not([open])>summary span{transform:rotate(-90deg)}
+ .extra-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 6px 6px}
+ .extra-stats .metric{margin:0;min-width:0;padding:7px;font-size:11px}
+ .extra-stats .metric b{font-size:18px}
+ #touch{gap:5px;margin:5px 0;justify-content:center}
+ #touch button{min-height:44px;flex:1 1 0;min-width:0;padding:7px 4px;font-size:12px}
+ #touch button:nth-child(1),#touch button:nth-child(2){flex:0.7 1 0}
+ #notice{font-size:12px}
+}
+@media(max-width:850px) and (orientation:portrait){
+ .rotate-hint{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:5px 0;border:1px solid #3c8c81;border-radius:10px;background:#153c3c}
+ .rotate-hint[hidden]{display:none}
+ .rotate-hint .rotate-symbol{font-size:26px;color:#6ee7b7}
+ .rotate-hint span:nth-child(2){flex:1;min-width:0}
+ .rotate-hint strong{display:block;font-size:12px;color:#a8f5db}
+ .rotate-hint small{display:block;font-size:11px;color:#bed3d6;margin-top:2px}
+ .rotate-hint button{background:transparent;border:0;padding:7px;color:#bcd6d2}
+}
+@media(orientation:landscape) and (max-height:600px) and (max-width:1100px){
+ .game-header-summary{min-height:24px}
+ .game-header-brand strong{font-size:18px}
+ .game-panel{padding:3px}
+ .board-wrap{min-width:0}
+ .board-scroll{overflow-x:auto}
+ .mobile-staff{padding:5px;margin:3px 0}
+ .mobile-staff-head{margin-bottom:3px}
+ .mobile-stage{padding:3px}
+ .mobile-stage strong{flex-basis:auto}
+ .mobile-stage button{min-width:37px;min-height:38px}
+ .top-scoreboard{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .top-scoreboard>.metric{padding:5px 8px}
+ #touch{margin:3px 0}
+}
+
+/* Landscape cockpit: the workflow and its controls share one viewport. */
+.game-sidebar{display:contents}
+@media (orientation:landscape) and (max-height:650px) and (max-width:1500px){
+ body{padding:3px 6px;overflow-x:hidden}
+ main{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) clamp(205px,22vw,290px);grid-template-rows:auto auto minmax(0,1fr) auto;column-gap:7px;row-gap:3px;align-items:start}
+ #gameHeader,#flowControls{grid-column:1/-1;margin:0}
+ .game-header-summary{min-height:22px}.game-header-brand strong{font-size:17px}
+ #flowControls{padding:4px 8px}.control-heading{min-height:21px!important}
+ #flowControls summary{cursor:pointer;margin:0!important}
+ #flowControls .collapse-cue{display:inline-block}
+ #flowControls:not([open]) .collapse-cue{transform:rotate(-90deg)}
+ .game-panel{grid-column:1;grid-row:3;margin:0;padding:3px;min-width:0}
+ .board-scroll{overflow:visible}
+ .board-wrap{min-width:0!important;width:100%;max-width:calc((100dvh - 115px)*1200/410);margin:0 auto}
+ #board{width:100%;height:auto}
+ .column-staff{display:none}
+ .game-sidebar{display:flex;grid-column:2;grid-row:3;flex-direction:column;gap:5px;min-width:0;max-height:calc(100dvh - 95px)}
+ .game-sidebar .rotate-hint{display:none}
+ .mobile-staff{display:block;margin:0;padding:6px}
+ .mobile-staff-head{margin-bottom:4px}
+ .mobile-staff-grid{display:flex;flex-direction:column;gap:3px}
+ .mobile-stage{display:grid;grid-template-columns:minmax(45px,1fr) 35px minmax(42px,auto) 35px;gap:3px;min-height:34px;padding:2px 4px;flex-wrap:nowrap}
+ .mobile-stage strong{grid-column:auto;flex-basis:auto;text-align:left;font-size:10px}
+ .mobile-stage button{min-width:32px;min-height:32px;padding:2px 5px;font-size:18px}
+ .mobile-stage .people-icons{font-size:12px;letter-spacing:-4px;min-width:22px}
+ .top-scoreboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;margin:0}
+ .top-scoreboard>.metric{padding:5px 4px;font-size:10px;line-height:1.1;min-height:51px}
+ .top-scoreboard>.metric b{font-size:18px;margin-top:3px}
+ .top-scoreboard .timer-metric b{font-size:19px}
+ .more-stats{grid-column:1/-1}
+ .more-stats>summary{padding:5px 8px}
+ .extra-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:3px}
+ .extra-stats .metric{padding:4px;font-size:10px}
+ .extra-stats .metric b{font-size:14px}
+ .notice-panel{margin:0;padding:5px 7px}
+ #notice{font-size:10px;min-height:0}
+ #touch{grid-column:1;grid-row:4;margin:0;gap:4px}
+ #touch button{min-height:36px;padding:4px}
+}
+@media (orientation:landscape) and (max-height:420px) and (max-width:1500px){
+ .game-sidebar{gap:3px}
+ .mobile-staff-head{display:none}
+ .mobile-stage{min-height:30px}
+ .mobile-stage button{min-height:28px}
+ .top-scoreboard>.metric{min-height:43px}
+ .top-scoreboard>.metric b{font-size:16px}
+ .notice-panel{display:none}
+}
+</style></head><body><main>
+<details id="gameHeader" class="game-header" open><summary class="game-header-summary"><span class="game-header-brand"><strong>FLOWTRIS</strong> <small>v3.9</small></span><span class="header-collapse-cue" aria-hidden="true">▾</span></summary><div class="bar game-header-content" style="justify-content:space-between"><div><p>Five minutes to maximise released product value. You control the flow; Autopilot handles the falling blocks.</p></div><div class="header-actions"><button id="leaderboardOpen" class="help-button" aria-haspopup="dialog">🏆 Leaderboard</button> <button id="howToOpen" class="help-button" aria-haspopup="dialog">? How to play</button> <button id="pause">Pause</button> <button id="reset">Reset</button></div></div></details>
+<details id="flowControls" class="lower-controls panel" open>
+<summary class="control-heading"><strong>FLOW CONTROLS <span class="collapse-cue">▾</span></strong><span id="staff" class="hint">Unassigned people: 0</span></summary>
+<div class="compact-controls">
+<label>Build WIP <input id="wip" type="range" min="1" max="12" value="4"><b id="wipN">4</b></label>
+<label>Test WIP <input id="testWip" type="range" min="1" max="12" value="3"><b id="testWipN">3</b></label>
+<label>Deploy WIP <input id="deployWip" type="range" min="1" max="12" value="2"><b id="deployWipN">2</b></label>
+<label>Speed <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+<button id="autopilot" class="primary">Autopilot: ON</button>
+<span class="release-readout">Next release <b id="release">0:07</b></span>
+<span class="mode-readout" aria-label="Production mode">Mode: <b id="mode">AUTO</b></span>
+</div></details>
+<div class="panel game-panel"><div class="board-scroll"><div class="board-wrap"><canvas id="board" width="1200" height="410"></canvas><div class="column-staff" data-stage="0"></div><div class="column-staff" data-stage="1"></div><div class="column-staff" data-stage="2"></div><div id="gameOverlay" class="game-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="gameOverTitle"><div class="game-over-card"><h2 id="gameOverTitle">GAME OVER</h2><p id="gameOverReason">Production has overflowed!</p><div class="final-score"><div>Final score<strong id="finalWeighted">0</strong></div><div>Value released<strong id="finalValue">0</strong></div><div>Flow efficiency<strong id="finalEfficiency">100%</strong></div><div>Lines cleared<strong id="finalLines">0</strong></div><div>Time survived<strong id="finalTime">0:00</strong></div></div><div id="leaderboardEntry" class="leaderboard-entry" hidden><label for="initial0">Initials</label><div class="initials-boxes"><input class="initial-box" id="initial0" maxlength="1" value="A" aria-label="First initial" autocomplete="off" spellcheck="false"><input class="initial-box" id="initial1" maxlength="1" value="A" aria-label="Second initial" autocomplete="off" spellcheck="false"><input class="initial-box" id="initial2" maxlength="1" value="A" aria-label="Third initial" autocomplete="off" spellcheck="false"></div><button id="saveScore" class="primary">Save score</button></div><button id="playAgain">↻ Play again</button></div></div></div></div><div id="touch"><button data-key="ArrowLeft">◀</button><button data-key="ArrowRight">▶</button><button data-key="ArrowUp">↻ Rotate</button><button data-key="ArrowDown">▼ Down</button><button data-key="Space">⤓ Drop</button></div>
+
+<div class="game-sidebar"><aside id="rotateHint" class="rotate-hint" aria-label="Landscape orientation suggestion"><span class="rotate-symbol">↻</span><span><strong>Flowtris plays better sideways</strong><small>Rotate your phone for a bigger board and easier controls.</small></span><button id="dismissRotate" type="button" aria-label="Dismiss rotate suggestion">✕</button></aside>
+<div class="mobile-staff" id="mobileStaff" aria-label="Allocate team members"><div class="mobile-staff-head"><strong>TEAM ALLOCATION</strong><span id="mobileUnassigned">1 unassigned</span></div><div class="mobile-staff-grid"></div></div>
+<div class="top-scoreboard" aria-label="Game scoreboard">
+<div class="metric timer-metric">Time remaining<b id="time">5:00</b></div>
+<div class="metric">Final score<b id="finalScoreLive">0</b></div><div class="metric">Product value<b id="value">0</b></div>
+<details id="moreStats" class="more-stats"><summary>More stats <span aria-hidden="true">▾</span></summary><div class="extra-stats"><div class="metric">Lines cleared<b id="lines">0</b></div>
+<div class="metric">Pieces placed<b id="placed">0</b></div>
+<div class="metric">Flow efficiency<b id="flowEfficiency">100%</b></div><div class="metric">Team utilisation<b id="util">0%</b></div>
+<div class="metric">Build / Backlog<b id="counts">0 / 20</b></div>
+<div class="metric">Avg. lead time<b id="lead">—</b></div></div></details>
+</div>
+<div class="panel notice-panel"><div id="notice">Click a backlog piece to start the five-minute round.</div></div></div>
+<div id="leaderboardModal" class="howto-backdrop" hidden><section class="howto-card leaderboard" role="dialog" aria-modal="true" aria-labelledby="leaderboardTitle" tabindex="-1"><div class="howto-head"><div><div class="howto-eyebrow">FLOWTRIS HALL OF FAME</div><h2 id="leaderboardTitle">Local leaderboard</h2></div><button id="leaderboardClose" aria-label="Close leaderboard">✕</button></div><table><thead><tr><th>#</th><th>Player</th><th>Score</th><th>Value</th><th>Efficiency</th><th>Result</th></tr></thead><tbody id="leaderboardRows"><tr><td colspan="6">No scores yet. Finish a round to record one.</td></tr></tbody></table><p id="submissionStatus" class="hint">No game events sent yet.</p><p id="leaderboardStatus" class="hint">Connecting to global leaderboard…</p><p class="hint">Three-letter initials are public. A browser ID counts repeat plays; clearing browser data or changing devices creates a new ID. Local scores remain available offline.</p><div class="howto-footer"><button id="clearLeaderboard" title="Delete scores saved in this browser">Clear scores</button><button id="leaderboardDone" class="primary">Close</button></div></section></div>
+<div id="howToModal" class="howto-backdrop" hidden>
+<section class="howto-card" role="dialog" aria-modal="true" aria-labelledby="howToTitle" tabindex="-1">
+<div class="howto-head"><div><div class="howto-eyebrow">FLOWTRIS FIELD GUIDE</div><h2 id="howToTitle">How to play</h2></div><button id="howToClose" aria-label="Close how to play">✕</button></div>
+<p class="howto-intro">You have <strong>five minutes</strong> to deliver as much product value as possible. You control which work starts and how your team is allocated. Production plays Tetris, automatically or with your help.</p>
+<div class="howto-grid">
+<div><h3>1 · Start the flow</h3><p>Click any shape in <strong>Backlog</strong> to start the timer and move it into Build. New work arrives every 2 simulated seconds, keeping up to 20 pieces waiting.</p></div>
+<div><h3>2 · Manage the team</h3><p>Use <strong>− / +</strong> at the top of Build, Test and Deploy to move your six people between stages. Keep the number of pieces close to the number of people for the best processing speed.</p></div>
+<div><h3>3 · Respect WIP limits</h3><p>Set separate Build, Test and Deploy WIP limits using the sliders. If the next stage is full, finished work stays <strong>blocked</strong> in its current stage until space opens.</p></div>
+<div><h3>4 · Release to Production</h3><p>Every <strong>7 simulated seconds</strong>, the oldest ready piece is automatically released. Autopilot tries to fit falling shapes into the grid. Complete full horizontal rows to release their product value.</p></div>
+<div><h3>5 · Take over Tetris</h3><p>Use <kbd>←</kbd> <kbd>→</kbd> to move, <kbd>↑</kbd> or <kbd>R</kbd> to rotate, <kbd>↓</kbd> to accelerate and <kbd>Space</kbd> to drop. Using a movement key takes over from Autopilot; press <kbd>A</kbd> to turn it back on.</p></div>
+<div><h3>6 · Don't overflow</h3><p>If Production fills up so a new piece cannot enter, it's <strong>GAME OVER</strong>. You also finish when the five-minute timer expires. Use Pause and Reset whenever you need.</p></div>
+</div>
+<h3>Product value and effort</h3><div class="value-legend"><span><i style="background:#38bdf8"></i>Blue · 10</span><span><i style="background:#c084fc"></i>Purple · 20</span><span><i style="background:#fbbf24"></i>Yellow · 30</span><span><i style="background:#fb7185"></i>Pink · 40</span><span><i style="background:#34d399"></i>Green · 50</span><span><i style="background:#f97316"></i>Orange · 60</span></div>
+<p class="hint">Higher-value work takes longer at every stage (10-value pieces: 1×; 60-value pieces: 3×). Build takes longer than Test or Deploy. Processing times vary randomly by up to 35%. Your final score is product value released multiplied by flow efficiency: active processing time divided by active processing plus blocked and Ready waiting time. Slower shared processing counts as active time, not waiting. All unfinished items in a stage progress concurrently, sharing staff capacity (one person per item maximum). Each item's ETA is its remaining effort divided by its current processing speed, so an item with 4 seconds of effort and 25% speed shows ETA 16 seconds. ETA changes as other work enters or leaves the stage. Multiple people incur a small coordination overhead when multiple items are active; there is no separate context-switching penalty. The percentage in each column header shows effective resource utilisation, including idle staff and coordination overhead; individual item ETAs reflect processing speed and is <strong style="color:#34d399">green</strong> when balanced, <strong style="color:#fbbf24">amber</strong> when reduced, and <strong style="color:#fb7185">red</strong> when severely reduced. This is a simplified learning simulation, not a real-world productivity forecast.</p>
+<div class="howto-footer"><button id="howToGotIt" class="primary">Got it, let's play</button></div>
+</section></div></main><script>
+'use strict';
+const $=id=>document.getElementById(id),canvas=$('board'),ctx=canvas.getContext('2d');
+const COLORS=['#38bdf8','#c084fc','#fbbf24','#fb7185','#34d399','#f97316'],VALUES=[10,20,30,40,50,60];
+const SHAPES=[[[0,0],[1,0],[1,1],[2,1]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[2,0],[1,1]],[[0,0],[0,1],[0,2],[1,2]],[[0,0],[1,0],[2,0],[3,0]],[[1,0],[0,1],[1,1],[2,1]]];
+const COLS=10,ROWS=16,CELL=21,GX=971,GY=42;
+const RELEASE_INTERVAL=7,ROUND_SECONDS=300,BACKLOG_REFILL_SECONDS=2,READY_LIMIT=6;
+const STAGE_BASE_SECONDS=[3.2,1.9,1.3],COORDINATION_OVERHEAD=0.04;
+let debugSeed=0;let activeSeconds=0,waitingSeconds=0,scoreSaved=false;const LEADERBOARD_KEY='flowtris-v18-leaderboard';
+const SCORE_API='https://script.google.com/macros/s/AKfycbyY3AvFUiDoMdsqF_U71Om4i6kB7t9HHlnyeuB_tpl2mJJ9WsZWOti389qAr_R1wggQtw/exec';
+const PLAYER_ID_KEY='flowtris-player-id-v1';
+let currentGameId=null, currentPlayerId=null, globalTop10=null, globalStatus='Connecting to global leaderboard…';
+function uniqueId(){
+  try { if(globalThis.crypto?.randomUUID)return globalThis.crypto.randomUUID(); }catch(e){}
+  return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);
+}
+function playerId(){
+  if(currentPlayerId)return currentPlayerId;
+  try{
+    currentPlayerId=localStorage.getItem(PLAYER_ID_KEY);
+    if(!currentPlayerId){currentPlayerId=uniqueId();localStorage.setItem(PLAYER_ID_KEY,currentPlayerId);}
+  }catch(e){currentPlayerId=uniqueId();}
+  return currentPlayerId;
+}
+let submissionStatus='No game events sent yet.';
+function setSubmissionStatus(message){
+ submissionStatus=message;
+ const el=$('submissionStatus');if(el)el.textContent=message;
+}
+function sendGameEvent(action,fields){
+ if(!currentGameId){setSubmissionStatus('No active game ID; event not sent.');return;}
+ const payload=JSON.stringify({action,gameId:currentGameId,playerId:playerId(),version:'3.7',...fields});
+ setSubmissionStatus('Sending '+action+' to Google Sheets…');
+ // Apps Script returns a cross-origin redirect. Opaque no-cors responses
+ // cannot confirm whether Apps Script accepted or rejected a record.
+ fetch(SCORE_API,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:payload,keepalive:true})
+  .then(()=>setSubmissionStatus(action+' request dispatched. Check Games tab or Apps Script → Executions to verify.'))
+  .catch(err=>setSubmissionStatus(action+' request failed: '+err.message));
+}
+function startTrackedGame(){
+  currentGameId=uniqueId();
+  sendGameEvent('start',{seed:seed>>>0});
+}
+function fetchGlobalScores(){
+ globalStatus='Loading all-time scores…';
+ const callback='flowtrisScores_'+Date.now()+'_'+Math.floor(Math.random()*100000);
+ const script=document.createElement('script');
+ let settled=false;
+ const finish=(data,error)=>{
+  if(settled)return;
+  settled=true;
+  clearTimeout(timeout);
+  delete window[callback];
+  script.remove();
+  if(error||!data||data.ok!==true||!Array.isArray(data.top10)){
+   globalTop10=null;
+   globalStatus='Global scores unavailable. Showing local scores.';
+  }else{
+   globalTop10=data.top10;
+   globalStatus='All-time Top 10 · '+Number(data.totalPlays||0)+' games started';
+  }
+  renderLeaderboard();
+ };
+ window[callback]=data=>finish(data,null);
+ script.onerror=()=>finish(null,'Network error');
+ const timeout=setTimeout(()=>finish(null,'Timeout'),10000);
+ script.src=SCORE_API+'?callback='+encodeURIComponent(callback)+'&t='+Date.now();
+ document.head.appendChild(script);
+}
+
+let workers=[3,2,1],seed,items,grid,falling,clock,run,paused,finished,score,lines,placed,busyTime,workerTime,completed,fallTimer,last=0,acc=0,id,auto=true,releaseTimer=0,autoTimer=0,buildWasFull=false,backlogTimer=0,pendingClear=null,flashRemaining=0;
+function createGameSeed(){
+  // Local HTML files and embedded previews may not expose Web Crypto.
+  try {
+    if (typeof globalThis.crypto?.getRandomValues === 'function') {
+      return globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
+    }
+  } catch (_) {}
+  return Math.floor(Math.random() * 4294967296) >>> 0;
+}
+function random(){seed=(1664525*seed+1013904223)>>>0;return seed/4294967296}
+function makeItem(){let colour=Math.floor(random()*6);return {id:id++,colour,shape:Math.floor(random()*SHAPES.length),size:1+Math.floor(random()*3),stage:-1,remaining:0,created:clock,activeSeconds:0,waitingSeconds:0}}
+function wip(){return items.filter(x=>x.stage===0).length}
+// All unfinished items share the available people. One item can use at most
+// one person's capacity; additional people do not make a single item faster.
+// Coordination costs 4% per additional person only when several items are active.
+function stageEfficiency(stage){
+const active=items.filter(x=>x.stage===stage&&x.remaining>0).length;
+if(!active)return 0;
+const assigned=workers[stage];
+const share=Math.min(1,assigned/active);
+const coordination=(assigned>1&&active>1)?1/(1+COORDINATION_OVERHEAD*(assigned-1)):1;
+return share*coordination;
+}
+// Utilisation accounts for spare staff as well as coordination overhead.
+// Active work cannot use more than one person's capacity per item.
+function stageUtilisation(stage){
+ const active=items.filter(x=>x.stage===stage&&x.remaining>0).length;
+ const assigned=workers[stage];
+ if(!assigned||!active)return 0;
+ const coordination=(assigned>1&&active>1)?1/(1+COORDINATION_OVERHEAD*(assigned-1)):1;
+ return Math.min(active,assigned)/assigned*coordination;
+}
+function stageLimit(stage){return +$(stage===0?'wip':stage===1?'testWip':'deployWip').value}
+function stageStart(item,stage){item.stage=stage;item.remaining=STAGE_BASE_SECONDS[stage]*item.size*(1+item.colour*.4)*(1+(random()*2-1)*(0.35))}
+function note(msg){$('notice').textContent=msg}
+function reset(){currentGameId=null;$('gameOverlay').hidden=true;activeSeconds=0;waitingSeconds=0;scoreSaved=false;$('leaderboardEntry').hidden=true;seed=createGameSeed();id=0;items=[];clock=0;grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));falling=null;run=false;paused=false;finished=false;score=0;lines=0;placed=0;busyTime=0;workerTime=0;completed=[];fallTimer=0;acc=0;auto=true;releaseTimer=0;autoTimer=0;buildWasFull=false;backlogTimer=0;pendingClear=null;flashRemaining=0;workers=[3,2,1];for(let i=0;i<20;i++)items.push(makeItem());$('pause').textContent='Pause';updateMode();note('Click a backlog piece to start the five-minute round.');staffUI();stats();draw()}
+function cells(piece){let a=SHAPES[piece.item.shape].map(([x,y])=>[x,y]);for(let i=0;i<piece.rot;i++)a=a.map(([x,y])=>[-y,x]);let minX=Math.min(...a.map(p=>p[0])),minY=Math.min(...a.map(p=>p[1]));return a.map(([x,y])=>[piece.x+x-minX,piece.y+y-minY])}
+function valid(piece){return cells(piece).every(([x,y])=>x>=0&&x<COLS&&y<ROWS&&(y<0||!grid[y][x]))}
+function spawn(item){let candidate={item,x:3,y:0,rot:0};if(!valid(candidate)){end('Production is full. Game over.');return}falling=candidate;item.stage=5;fallTimer=0;autoTimer=0;note(auto?'Autopilot is finding a production placement. Press an arrow key to take over.':'Manual production: use arrow keys; Space drops the piece.')}
+function lock(){if(!falling)return;let p=falling;for(let [x,y] of cells(p)){if(y<0){end('Production overflow. Game over.');return}grid[y][x]={colour:p.item.colour,value:VALUES[p.item.colour]}}
+placed++;completed.push(clock-p.item.created);falling=null;
+const rows=fullRows();
+if(rows.length){pendingClear=rows;flashRemaining=0.6;note(rows.length+' completed line(s)! Clearing…')}
+else note('Piece placed. Complete a horizontal line to release its value.');}
+function fullRows(){
+const rows=[];
+for(let y=0;y<ROWS;y++)if(grid[y].every(Boolean))rows.push(y);
+return rows;
+}
+function finishClear(){
+if(!pendingClear)return;
+const clearing=pendingClear.slice();
+let gained=0;
+for(const y of clearing)gained+=grid[y].reduce((n,c)=>n+c.value,0);
+for(const y of clearing.sort((a,b)=>b-a)){grid.splice(y,1);grid.unshift(Array(COLS).fill(null))}
+lines+=clearing.length;score+=gained;
+pendingClear=null;flashRemaining=0;
+// Re-evaluate the settled board after gravity. A row that becomes complete
+// following a previous clear must receive its own flash and score.
+const next=fullRows();
+if(next.length){
+pendingClear=next;
+flashRemaining=0.6;
+note(clearing.length+' line(s) cleared! '+gained+' value released. '+next.length+' more line(s) ready!');
+}else{
+note(clearing.length+' line(s) cleared! '+gained+' value released.');
+}
+}
+function move(dx,dy){if(!falling||paused||finished)return false;let p={...falling,x:falling.x+dx,y:falling.y+dy};if(valid(p)){falling=p;return true}if(dy>0)lock();return false}
+function rotate(){if(!falling||paused||finished)return;for(let offset of [0,-1,1,-2,2]){let p={...falling,x:falling.x+offset,rot:(falling.rot+1)%4};if(valid(p)){falling=p;return}}}
+function control(key){if(!$('howToModal').hidden)return;if(key==='a'||key==='A'){setAuto(true);return}if(!run||paused||finished||!falling)return;if(auto)setAuto(false);if(key==='ArrowLeft')move(-1,0);if(key==='ArrowRight')move(1,0);if(key==='ArrowUp'||key==='r'||key==='R')rotate();if(key==='ArrowDown')move(0,1);if(key==='Space'){while(falling&&move(0,1)){} }}
+document.addEventListener('keydown',e=>{if(e.target.closest('input,select,textarea,[contenteditable=true]')||!$('leaderboardModal').hidden||!$('gameOverlay').hidden)return;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space',' '].includes(e.key))e.preventDefault();control(e.key===' '?'Space':e.key)});
+document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>control(b.dataset.key));
+function setAuto(value){auto=value;autoTimer=0;updateMode();note(auto?'Autopilot enabled: production placement is automatic.':'Manual production enabled. Use arrow keys, R and Space. Press A for Autopilot.')}
+function updateMode(){$('touch').classList.toggle('manual-hidden',auto);$('autopilot').textContent='Autopilot: '+(auto?'ON':'OFF');$('autopilot').className=auto?'primary':'';$('mode').textContent=auto?'AUTO':'MANUAL'}
+// Enumerate every rotation and landing column. Reward full lines, penalise
+// holes, column height and rough surfaces. This is a heuristic, not an oracle.
+function autoPlace(){if(!falling)return;let best=null;
+for(let rot=0;rot<4;rot++)for(let x=-3;x<COLS+3;x++){
+let p={...falling,rot,x,y:0};if(!valid(p))continue;
+while(valid({...p,y:p.y+1}))p.y++;
+let board=grid.map(row=>row.map(c=>c?1:0));let coords=cells(p);if(coords.some(([cx,cy])=>cy<0))continue;
+for(let [cx,cy] of coords)board[cy][cx]=1;
+let full=board.filter(row=>row.every(Boolean)).length;
+board=board.filter(row=>!row.every(Boolean));while(board.length<ROWS)board.unshift(Array(COLS).fill(0));
+let heights=[],holes=0;
+for(let cx=0;cx<COLS;cx++){let top=board.findIndex(row=>row[cx]);heights.push(top<0?0:ROWS-top);if(top>=0)for(let cy=top+1;cy<ROWS;cy++)if(!board[cy][cx])holes++}
+let bump=heights.slice(1).reduce((n,h,i)=>n+Math.abs(h-heights[i]),0),height=heights.reduce((a,b)=>a+b,0),max=Math.max(...heights);
+let rating=full*130-holes*22-height*1.8-bump*3-max*4;
+if(!best||rating>best.rating)best={p,rating};
+}
+if(!best){end('Production overflow. Game over.');return}
+falling=best.p;lock();
+}
+function overallEfficiency(){const total=activeSeconds+waitingSeconds;return total?activeSeconds/total:1}
+function weightedScore(){return Math.round(score*overallEfficiency())}
+function readLeaderboard(){try{const v=JSON.parse(localStorage.getItem(LEADERBOARD_KEY)||'[]');return Array.isArray(v)?v:[]}catch{return []}}
+function renderLeaderboard(){
+ const rows=$('leaderboardRows');rows.replaceChildren();
+ const global=Array.isArray(globalTop10);
+ const records=global?globalTop10.slice(0,10):readLeaderboard().slice(0,10);
+ $('leaderboardTitle').textContent=global?'All-time Top 10':'Local leaderboard';
+ $('leaderboardStatus').textContent=globalStatus;
+ $('clearLeaderboard').textContent='Clear local scores';
+ if(!records.length){
+  const tr=document.createElement('tr'),td=document.createElement('td');
+  td.colSpan=6;td.textContent=global?'No global scores yet. Be the first!':'No local scores yet. Finish a round to record one.';
+  tr.append(td);rows.append(tr);return;
+ }
+ records.forEach((entry,i)=>{
+  const tr=document.createElement('tr');
+  const values=global
+    ?[i+1,entry.initials,entry.score,'—',Math.round(Number(entry.efficiency)*100)+'%','All time']
+    :[i+1,entry.name,entry.points,entry.value,entry.efficiency+'%',entry.result];
+  values.forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td)});
+  rows.append(tr);
+ });
+}
+function saveLeaderboardScore(){
+ if(scoreSaved||!finished)return;
+ const raw=[0,1,2].map(i=>$('initial'+i).value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,1)||'A').join('');
+ const blockedNames=new Set(['SEX','FUK','FUC','FCK','FUX','CUM','COK','COC','DIK','DIC','ASS','TIT','PIS','CNT','NIG','KKK','WTF']);
+ const name=blockedNames.has(raw)?'XXX':raw.padEnd(3,'A');
+ const entry={name,points:weightedScore(),value:score,efficiency:Math.round(overallEfficiency()*100),result:clock>=ROUND_SECONDS?'Time up':'Overflow',date:new Date().toISOString()};
+ // Send regardless of whether localStorage is available.
+ sendGameEvent('finish',{initials:name,score:entry.points,value:score,efficiency:overallEfficiency(),duration:clock,status:clock>=ROUND_SECONDS?'completed':'gameover'});
+ try{
+  const data=readLeaderboard();data.push(entry);data.sort((a,b)=>b.points-a.points||b.value-a.value);
+  localStorage.setItem(LEADERBOARD_KEY,JSON.stringify(data.slice(0,10)));
+  note('Score saved locally. Google Sheets submission requested.');
+ }catch(e){note('Google Sheets submission requested; local storage unavailable.');}
+ scoreSaved=true;$('leaderboardEntry').hidden=true;renderLeaderboard();
+}
+
+function end(message){
+if(finished)return;
+if(pendingClear)finishClear();
+run=false;finished=true;falling=null;note(message);
+const timedOut=clock>=ROUND_SECONDS;
+$('gameOverTitle').textContent=timedOut?'TIME UP!':'GAME OVER';
+$('gameOverReason').textContent=timedOut?'Five-minute round complete. How much value did you release?':'Production overflow! The drop zone is blocked.';
+$('finalValue').textContent=score;
+$('finalWeighted').textContent=weightedScore();
+$('finalEfficiency').textContent=Math.round(overallEfficiency()*100)+'%';
+for(let i=0;i<3;i++)$('initial'+i).value='A';$('leaderboardEntry').hidden=false;
+$('finalLines').textContent=lines;
+$('finalTime').textContent=Math.floor(clock/60)+':'+String(Math.floor(clock%60)).padStart(2,'0');
+$('gameOverlay').hidden=false;
+}
+function tick(dt){if(!run||paused)return;clock=Math.min(ROUND_SECONDS,clock+dt);
+backlogTimer+=dt;
+while(backlogTimer>=BACKLOG_REFILL_SECONDS){backlogTimer-=BACKLOG_REFILL_SECONDS;if(items.filter(x=>x.stage===-1).length<20)items.push(makeItem())}
+let busy=0;
+for(let s=2;s>=0;s--){let inStage=items.filter(x=>x.stage===s).sort((a,b)=>a.id-b.id);
+let working=inStage.filter(x=>x.remaining>0);busy+=Math.min(working.length,workers[s]);
+const efficiency=stageEfficiency(s);
+for(let item of working){item.activeSeconds+=dt;activeSeconds+=dt;item.remaining=Math.max(0,item.remaining-dt*efficiency);}
+for(let item of inStage.filter(x=>x.remaining===0)){
+if(s===2){if(items.filter(z=>z.stage===3).length<READY_LIMIT)item.stage=3}
+else if(items.filter(z=>z.stage===s+1).length<stageLimit(s+1))stageStart(item,s+1)
+if(item.stage===s){item.waitingSeconds+=dt;waitingSeconds+=dt;}
+}}
+busyTime+=busy*dt;workerTime+=workers.reduce((a,b)=>a+b,0)*dt;
+for(const item of items){if(item.stage===3){item.waitingSeconds+=dt;waitingSeconds+=dt;}}
+const fullNow=wip()>=stageLimit(0);
+if(buildWasFull&&!fullNow)note('Build capacity available again. Select another backlog item.');
+buildWasFull=fullNow;
+releaseTimer+=dt;
+// Strict, fixed release slots. A missed slot expires; no credits are banked.
+if(releaseTimer>=RELEASE_INTERVAL){
+  releaseTimer%=RELEASE_INTERVAL;
+  if(!falling&&!pendingClear){const ready=items.find(x=>x.stage===3);if(ready)spawn(ready)}
+}
+if(pendingClear){flashRemaining-=dt;if(flashRemaining<=0)finishClear()}
+if(falling&&auto){autoTimer+=dt;if(autoTimer>=1.1){autoTimer=0;autoPlace()}}
+if(falling){fallTimer+=dt;let gravity=.8;while(falling&&fallTimer>=gravity){fallTimer-=gravity;move(0,1)}}
+if(clock>=ROUND_SECONDS)end('Five minutes finished! Final value: '+score+'. Reset to try another strategy.');
+}
+function staffUI(){
+const total=workers.reduce((a,b)=>a+b,0);
+const mobile=document.querySelector('.mobile-staff-grid');mobile.replaceChildren();
+['Build','Test','Deploy'].forEach((name,i)=>{
+ const desktop=document.querySelector('.column-staff[data-stage="'+i+'"]');desktop.replaceChildren();
+ const makeControls=(host,mobileMode)=>{
+  const minus=document.createElement('button');minus.type='button';minus.textContent='−';minus.title='Remove person from '+name;minus.setAttribute('aria-label',minus.title);minus.disabled=workers[i]<=1;
+  const count=document.createElement('span');count.className='people-icons';count.textContent='👤'.repeat(workers[i]);count.title=name+': '+workers[i]+' allocated';count.setAttribute('aria-label',count.title);
+  const plus=document.createElement('button');plus.type='button';plus.textContent='+';plus.title='Assign person to '+name;plus.setAttribute('aria-label',plus.title);plus.disabled=total>=6;
+  minus.onclick=()=>{workers[i]--;staffUI();stats()};plus.onclick=()=>{workers[i]++;staffUI();stats()};
+  if(mobileMode){const label=document.createElement('strong');label.textContent=name;host.append(label)}
+  host.append(minus,count,plus);
+ };
+ makeControls(desktop,false);
+ const row=document.createElement('div');row.className='mobile-stage';makeControls(row,true);mobile.append(row);
+});
+$('staff').textContent='Unassigned people: '+(6-total);
+$('mobileUnassigned').textContent=(6-total)+' unassigned';
+}
+function stats(){let remain=Math.ceil(ROUND_SECONDS-clock);$('time').textContent=Math.floor(remain/60)+':'+String(remain%60).padStart(2,'0');$('value').textContent=score;$('finalScoreLive').textContent=weightedScore();$('flowEfficiency').textContent=Math.round(overallEfficiency()*100)+'%';$('lines').textContent=lines;$('placed').textContent=placed;$('util').textContent=(workerTime?busyTime/workerTime*100:0).toFixed(0)+'%';$('counts').textContent=wip()+' / '+items.filter(x=>x.stage===-1).length;$('release').textContent='0:'+String(Math.max(0,Math.ceil(RELEASE_INTERVAL-releaseTimer))).padStart(2,'0');$('mode').textContent=auto?'AUTO':'MANUAL';$('lead').textContent=completed.length?(completed.reduce((a,b)=>a+b,0)/completed.length).toFixed(1)+'s':'—'}
+const regions=[{x:8,w:208,label:'BACKLOG',stage:-1},{x:226,w:208,label:'BUILD',stage:0},{x:444,w:208,label:'TEST',stage:1},{x:662,w:208,label:'DEPLOY',stage:2},{x:880,w:78,label:'READY',stage:3}];
+function drawShape(item,x,y,unit=13){for(let [dx,dy] of SHAPES[item.shape]){ctx.fillStyle=COLORS[item.colour];ctx.fillRect(x+dx*unit,y+dy*unit,unit-1,unit-1)}}
+function draw(){ctx.clearRect(0,0,1200,410);ctx.fillStyle='#101b2c';ctx.fillRect(0,0,1200,410);
+for(let r of regions){ctx.fillStyle='#1d2d43';ctx.fillRect(r.x,35,r.w,359);ctx.strokeStyle='#435a75';ctx.strokeRect(r.x,35,r.w,359);ctx.fillStyle='#cbd5e1';ctx.font='bold 14px system-ui';ctx.fillText(r.label,r.x+8,24);if(r.stage>=0&&r.stage<=2){const util=Math.round(stageUtilisation(r.stage)*100);ctx.fillStyle=util>=95?'#34d399':util>=70?'#fbbf24':'#fb7185';ctx.font='bold 14px system-ui';ctx.textAlign='right';ctx.fillText(util+'% utilised',r.x+r.w-8,24);ctx.textAlign='left';}
+let arr=items.filter(x=>x.stage===r.stage);
+arr.slice(0,r.stage===-1?20:r.stage===3?6:12).forEach((item,i)=>{let columns=r.stage===3?1:2,stepX=r.stage===3?0:98,stepY=r.stage===-1?32:r.stage===3?49:44,x=r.x+8+(i%columns)*stepX,y=(r.stage>=0&&r.stage<=2?83:49)+Math.floor(i/columns)*stepY;drawShape(item,x,y,r.stage===3?10:12);ctx.fillStyle='#d7e3f5';ctx.font='11px system-ui';ctx.fillText(''+VALUES[item.colour],x+(r.stage===3?43:57),y+11);if(item.stage>=0&&item.stage<3){ctx.fillStyle='#a2b5cd';ctx.fillText(item.remaining===0?'BLOCKED':'ETA '+(item.remaining/Math.max(0.0001,stageEfficiency(item.stage))).toFixed(1)+'s',x+40,y+25)}});ctx.fillStyle='#a9bed5';ctx.font='12px system-ui';ctx.fillText(arr.length+' items',r.x+8,385)}
+ctx.fillStyle='#dbe7f6';ctx.font='bold 14px system-ui';ctx.fillText('PRODUCTION',GX,24);
+for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){let v=grid[y][x];ctx.fillStyle=v?COLORS[v.colour]:'#23354e';ctx.fillRect(GX+x*CELL,GY+y*CELL,CELL-2,CELL-2)}
+if(pendingClear){const lit=Math.floor((0.6-flashRemaining)/0.1)%2===0;for(const row of pendingClear){ctx.fillStyle=lit?'#ffffff':'#fbbf24';ctx.globalAlpha=lit?.95:.7;ctx.fillRect(GX,GY+row*CELL,COLS*CELL,CELL-1)}ctx.globalAlpha=1}
+if(falling){let ghost={...falling};while(valid({...ghost,y:ghost.y+1}))ghost.y++;ctx.globalAlpha=.22;for(let [x,y] of cells(ghost)){if(y>=0){ctx.fillStyle=COLORS[ghost.item.colour];ctx.fillRect(GX+x*CELL,GY+y*CELL,CELL-2,CELL-2)}}ctx.globalAlpha=1;for(let [x,y] of cells(falling)){if(y>=0){ctx.fillStyle=COLORS[falling.item.colour];ctx.fillRect(GX+x*CELL,GY+y*CELL,CELL-2,CELL-2)}}}
+ctx.fillStyle='#9cb2cf';ctx.font='12px system-ui';ctx.fillText(auto?'AUTO  ·  A / arrows':'MANUAL  ·  A = AUTO',GX,400)}
+canvas.addEventListener('click',e=>{let r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*canvas.width/r.width,y=(e.clientY-r.top)*canvas.height/r.height;if(paused||finished)return;
+if(x>=8&&x<216&&y>=49&&y<369){let index=Math.floor((y-49)/32)*2+Math.floor((x-16)/98),arr=items.filter(z=>z.stage===-1);if(index>=0&&index<arr.length){if(wip()>=stageLimit(0)){buildWasFull=true;note('Build WIP limit reached. Capacity reopens when an item moves to Test.')}else{if(!run){run=true;paused=false;startTrackedGame();}stageStart(arr[index],0);buildWasFull=wip()>=stageLimit(0);note('Started item '+arr[index].id+' (value '+VALUES[arr[index].colour]+').')}stats()}return}
+// Ready pieces are released automatically; no click is needed.
+
+});
+function frame(t){if(!last)last=t;let dt=Math.min((t-last)/1000,.1);last=t;if(run&&!paused){acc+=dt*+$('speed').value;while(acc>=.05&&run){tick(.05);acc-=.05}stats()}draw();requestAnimationFrame(frame)}
+const leaderboardModal=$('leaderboardModal');let leaderboardReturnFocus=null;
+function openLeaderboard(){leaderboardReturnFocus=document.activeElement;fetchGlobalScores();renderLeaderboard();leaderboardModal.hidden=false;$('leaderboardClose').focus()}
+function closeLeaderboard(){leaderboardModal.hidden=true;if(leaderboardReturnFocus&&leaderboardReturnFocus.focus)leaderboardReturnFocus.focus()}
+$('leaderboardOpen').onclick=openLeaderboard;$('leaderboardClose').onclick=closeLeaderboard;$('leaderboardDone').onclick=closeLeaderboard;
+leaderboardModal.addEventListener('click',e=>{if(e.target===leaderboardModal)closeLeaderboard()});
+document.addEventListener('keydown',e=>{if(leaderboardModal.hidden)return;if(e.key==='Escape'){e.preventDefault();closeLeaderboard()}else if(e.key==='Tab'){const nodes=[...leaderboardModal.querySelectorAll('button')];const i=nodes.indexOf(document.activeElement);if(e.shiftKey&&i===0){e.preventDefault();nodes[nodes.length-1].focus()}else if(!e.shiftKey&&i===nodes.length-1){e.preventDefault();nodes[0].focus()}}});
+const helpModal=$('howToModal');let helpReturnFocus=null;
+function openHelp(){helpReturnFocus=document.activeElement;helpModal.hidden=false;$('howToClose').focus()}
+function closeHelp(){helpModal.hidden=true;if(helpReturnFocus&&helpReturnFocus.focus)helpReturnFocus.focus()}
+$('howToOpen').onclick=openHelp;$('howToClose').onclick=closeHelp;$('howToGotIt').onclick=closeHelp;
+helpModal.addEventListener('click',e=>{if(e.target===helpModal)closeHelp()});
+document.addEventListener('keydown',e=>{if(!helpModal.hidden){if(e.key==='Escape'){e.preventDefault();closeHelp()}else if(e.key==='Tab'){const nodes=[...helpModal.querySelectorAll('button')];const i=nodes.indexOf(document.activeElement);if(e.shiftKey&&i===0){e.preventDefault();nodes[nodes.length-1].focus()}else if(!e.shiftKey&&i===nodes.length-1){e.preventDefault();nodes[0].focus()}}}});
+$('playAgain').onclick=reset;$('autopilot').onclick=()=>setAuto(!auto);$('pause').onclick=()=>{if(!run)return;paused=!paused;$('pause').textContent=paused?'Resume':'Pause'};$('reset').onclick=reset;
+for(let [field,label] of [['wip','wipN'],['testWip','testWipN'],['deployWip','deployWipN']])$(field).oninput=()=>{$(label).textContent=$(field).value;stats()};
+for(let i=0;i<3;i++){
+ const field=$('initial'+i);
+ field.addEventListener('focus',()=>field.select());
+ field.addEventListener('input',()=>{
+   field.value=field.value.toUpperCase().replace(/[^A-Z]/g,'').slice(-1);
+   if(field.value&&i<2)$('initial'+(i+1)).focus();
+ });
+ field.addEventListener('keydown',e=>{
+   if(e.key==='Enter'){e.preventDefault();e.stopPropagation();saveLeaderboardScore()}
+   else if(e.key==='Backspace'&&!field.value&&i>0){e.preventDefault();$('initial'+(i-1)).focus();$('initial'+(i-1)).value=''}
+   else if(e.key==='ArrowLeft'&&i>0){e.preventDefault();e.stopPropagation();$('initial'+(i-1)).focus()}
+   else if(e.key==='ArrowRight'&&i<2){e.preventDefault();e.stopPropagation();$('initial'+(i+1)).focus()}
+ });
+ field.addEventListener('paste',e=>{
+   const pasted=(e.clipboardData?.getData('text')||'').toUpperCase().replace(/[^A-Z]/g,'').slice(0,3-i);
+   if(!pasted)return;
+   e.preventDefault();for(let j=0;j<pasted.length;j++)$('initial'+(i+j)).value=pasted[j];
+   $('initial'+Math.min(2,i+pasted.length)).focus();
+ });
+}
+$('saveScore').onclick=saveLeaderboardScore;
+$('clearLeaderboard').onclick=()=>{if(confirm('Clear the local Flowtris leaderboard?')){try{localStorage.removeItem(LEADERBOARD_KEY)}catch(e){}renderLeaderboard()}};
+renderLeaderboard();reset();fetchGlobalScores();requestAnimationFrame(frame);
+// Match both narrow portrait phones and wider landscape phones.
+// Desktop keeps both sections open; mobile orientation changes reset the defaults.
+(function(){
+ const rotateHint=$('rotateHint');
+try{rotateHint.hidden=sessionStorage.getItem('flowtris-rotate-dismissed')==='1'}catch(e){}
+$('dismissRotate').onclick=()=>{rotateHint.hidden=true;try{sessionStorage.setItem('flowtris-rotate-dismissed','1')}catch(e){}};
+const controls=$('flowControls'),header=$('gameHeader');
+ const narrow=window.matchMedia('(max-width:700px)');
+ const landscapePhone=window.matchMedia('(orientation:landscape) and (max-height:650px) and (max-width:1500px)');
+ function syncLayout(){
+   controls.open=!(narrow.matches||landscapePhone.matches);
+   header.open=!(landscapePhone.matches||narrow.matches);
+ }
+ syncLayout();
+ narrow.addEventListener('change',syncLayout);
+ landscapePhone.addEventListener('change',syncLayout);
+})();
+</script></body></html>
