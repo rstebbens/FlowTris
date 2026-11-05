@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v4.0</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v4.1</title>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:20px;background:#0c1423;color:#e8effa;font:14px system-ui,Arial}main{max-width:1250px;margin:auto}h1{margin:0;color:#6ee7b7}p{color:#b4c3d7}.bar,.stats,.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.panel,.metric{background:#19283e;border:1px solid #344860;border-radius:12px;padding:12px;margin:10px 0}.metric{flex:1;min-width:105px}.metric b{display:block;font-size:22px;color:white}button,select{background:#304b6d;color:#fff;border:1px solid #6886a7;border-radius:7px;padding:9px 12px;cursor:pointer}button:hover{background:#43688e}button:disabled{opacity:.35;cursor:not-allowed}.primary{background:#087e6b}canvas{display:block;width:100%;height:auto;background:#101b2c;border-radius:8px;touch-action:manipulation}label{display:inline-flex;align-items:center;gap:7px}input{accent-color:#6ee7b7}.hint{font-size:12px;color:#a7b9d2}.staff{display:flex;gap:12px;flex-wrap:wrap}.staff>div{display:flex;align-items:center;gap:6px}#notice{color:#fbbf24;min-height:20px}#touch{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}@media(min-width:900px){#touch{display:none}}
 
@@ -360,12 +360,15 @@ return share*coordination;
 }
 // Utilisation accounts for spare staff as well as coordination overhead.
 // Active work cannot use more than one person's capacity per item.
-function stageUtilisation(stage){
+function stageEfficiency(stage){
  const active=items.filter(x=>x.stage===stage&&x.remaining>0).length;
  const assigned=workers[stage];
  if(!assigned||!active)return 0;
+ // Best efficiency occurs when in-progress items and allocated people match.
+ // Excess WIP creates context-switching drag; excess staffing leaves people idle.
+ const balance=Math.min(active,assigned)/Math.max(active,assigned);
  const coordination=(assigned>1&&active>1)?1/(1+COORDINATION_OVERHEAD*(assigned-1)):1;
- return Math.min(active,assigned)/assigned*coordination;
+ return balance*coordination;
 }
 function stageLimit(stage){return +$(stage===0?'wip':stage===1?'testWip':'deployWip').value}
 function stageStart(item,stage){item.stage=stage;item.remaining=STAGE_BASE_SECONDS[stage]*item.size*(1+item.colour*.4)*(1+(random()*2-1)*(0.35))}
@@ -536,7 +539,7 @@ function stats(){let remain=Math.ceil(ROUND_SECONDS-clock);$('time').textContent
 const regions=[{x:8,w:208,label:'BACKLOG',stage:-1},{x:226,w:208,label:'BUILD',stage:0},{x:444,w:208,label:'TEST',stage:1},{x:662,w:208,label:'DEPLOY',stage:2},{x:880,w:78,label:'READY',stage:3}];
 function drawShape(item,x,y,unit=13){for(let [dx,dy] of SHAPES[item.shape]){ctx.fillStyle=COLORS[item.colour];ctx.fillRect(x+dx*unit,y+dy*unit,unit-1,unit-1)}}
 function draw(){ctx.clearRect(0,0,1200,410);ctx.fillStyle='#101b2c';ctx.fillRect(0,0,1200,410);
-for(let r of regions){ctx.fillStyle='#1d2d43';ctx.fillRect(r.x,35,r.w,359);ctx.strokeStyle='#435a75';ctx.strokeRect(r.x,35,r.w,359);ctx.fillStyle='#cbd5e1';ctx.font='bold 14px system-ui';ctx.fillText(r.label,r.x+8,24);if(r.stage>=0&&r.stage<=2){const util=Math.round(stageUtilisation(r.stage)*100);ctx.fillStyle=util>=95?'#34d399':util>=70?'#fbbf24':'#fb7185';ctx.font='bold 14px system-ui';ctx.textAlign='right';ctx.fillText(util+'% utilised',r.x+r.w-8,24);ctx.textAlign='left';}
+for(let r of regions){ctx.fillStyle='#1d2d43';ctx.fillRect(r.x,35,r.w,359);ctx.strokeStyle='#435a75';ctx.strokeRect(r.x,35,r.w,359);ctx.fillStyle='#cbd5e1';ctx.font='bold 14px system-ui';ctx.fillText(r.label,r.x+8,24);if(r.stage>=0&&r.stage<=2){const util=Math.round(stageEfficiency(r.stage)*100);ctx.fillStyle=util>=95?'#34d399':util>=70?'#fbbf24':'#fb7185';ctx.font='bold 14px system-ui';ctx.textAlign='right';ctx.fillText(util+'% efficient',r.x+r.w-8,24);ctx.textAlign='left';}
 let arr=items.filter(x=>x.stage===r.stage);
 arr.slice(0,r.stage===-1?20:r.stage===3?6:12).forEach((item,i)=>{let columns=r.stage===3?1:2,stepX=r.stage===3?0:98,stepY=r.stage===-1?32:r.stage===3?49:44,x=r.x+8+(i%columns)*stepX,y=(r.stage>=0&&r.stage<=2?83:49)+Math.floor(i/columns)*stepY;drawShape(item,x,y,r.stage===3?10:12);ctx.fillStyle='#d7e3f5';ctx.font='11px system-ui';ctx.fillText(''+VALUES[item.colour],x+(r.stage===3?43:57),y+11);if(item.stage>=0&&item.stage<3){ctx.fillStyle='#a2b5cd';ctx.fillText(item.remaining===0?'BLOCKED':'ETA '+(item.remaining/Math.max(0.0001,stageEfficiency(item.stage))).toFixed(1)+'s',x+40,y+25)}});ctx.fillStyle='#a9bed5';ctx.font='12px system-ui';ctx.fillText(arr.length+' items',r.x+8,385)}
 ctx.fillStyle='#dbe7f6';ctx.font='bold 14px system-ui';ctx.fillText('PRODUCTION',GX,24);
