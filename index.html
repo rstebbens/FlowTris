@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v4.2</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v4.3</title>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:20px;background:#0c1423;color:#e8effa;font:14px system-ui,Arial}main{max-width:1250px;margin:auto}h1{margin:0;color:#6ee7b7}p{color:#b4c3d7}.bar,.stats,.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.panel,.metric{background:#19283e;border:1px solid #344860;border-radius:12px;padding:12px;margin:10px 0}.metric{flex:1;min-width:105px}.metric b{display:block;font-size:22px;color:white}button,select{background:#304b6d;color:#fff;border:1px solid #6886a7;border-radius:7px;padding:9px 12px;cursor:pointer}button:hover{background:#43688e}button:disabled{opacity:.35;cursor:not-allowed}.primary{background:#087e6b}canvas{display:block;width:100%;height:auto;background:#101b2c;border-radius:8px;touch-action:manipulation}label{display:inline-flex;align-items:center;gap:7px}input{accent-color:#6ee7b7}.hint{font-size:12px;color:#a7b9d2}.staff{display:flex;gap:12px;flex-wrap:wrap}.staff>div{display:flex;align-items:center;gap:6px}#notice{color:#fbbf24;min-height:20px}#touch{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}@media(min-width:900px){#touch{display:none}}
 
@@ -350,22 +350,22 @@ function wip(){return items.filter(x=>x.stage===0).length}
 // All unfinished items share the available people. One item can use at most
 // one person's capacity; additional people do not make a single item faster.
 // Coordination costs 4% per additional person only when several items are active.
-function stageEfficiency(stage){
-const active=items.filter(x=>x.stage===stage&&x.remaining>0).length;
-if(!active)return 0;
-const assigned=workers[stage];
-const share=Math.min(1,assigned/active);
-const coordination=(assigned>1&&active>1)?1/(1+COORDINATION_OVERHEAD*(assigned-1)):1;
-return share*coordination;
+// Processing capacity is distinct from stage staffing efficiency.
+// Extra people cannot make a single item process slower; excess WIP shares capacity.
+function stageProcessingRate(stage){
+ const active=items.filter(x=>x.stage===stage&&x.remaining>0).length;
+ const assigned=workers[stage];
+ if(!active||!assigned)return 0;
+ const share=Math.min(1,assigned/active);
+ const coordination=(assigned>1&&active>1)?1/(1+COORDINATION_OVERHEAD*(assigned-1)):1;
+ return share*coordination;
 }
-// Utilisation accounts for spare staff as well as coordination overhead.
-// Active work cannot use more than one person's capacity per item.
+// Displayed stage efficiency rewards a balanced amount of work and staffing.
+// This metric must not itself determine the rate at which work progresses.
 function stageEfficiency(stage){
  const active=items.filter(x=>x.stage===stage&&x.remaining>0).length;
  const assigned=workers[stage];
- if(!assigned||!active)return 0;
- // Best efficiency occurs when in-progress items and allocated people match.
- // Excess WIP creates context-switching drag; excess staffing leaves people idle.
+ if(!active||!assigned)return 0;
  const balance=Math.min(active,assigned)/Math.max(active,assigned);
  const coordination=(assigned>1&&active>1)?1/(1+COORDINATION_OVERHEAD*(assigned-1)):1;
  return balance*coordination;
@@ -496,8 +496,14 @@ while(backlogTimer>=BACKLOG_REFILL_SECONDS){backlogTimer-=BACKLOG_REFILL_SECONDS
 let busy=0;
 for(let s=2;s>=0;s--){let inStage=items.filter(x=>x.stage===s).sort((a,b)=>a.id-b.id);
 let working=inStage.filter(x=>x.remaining>0);busy+=Math.min(working.length,workers[s]);
-const efficiency=stageEfficiency(s);
-for(let item of working){item.activeSeconds+=dt;activeSeconds+=dt;item.remaining=Math.max(0,item.remaining-dt*efficiency);}
+const processingRate=stageProcessingRate(s);
+for(let item of working){
+ const processed=dt*processingRate;
+ item.activeSeconds+=processed;activeSeconds+=processed;
+ const unprocessed=dt-processed;
+ item.waitingSeconds+=unprocessed;waitingSeconds+=unprocessed;
+ item.remaining=Math.max(0,item.remaining-processed);
+}
 for(let item of inStage.filter(x=>x.remaining===0)){
 if(s===2){if(items.filter(z=>z.stage===3).length<READY_LIMIT)item.stage=3}
 else if(items.filter(z=>z.stage===s+1).length<stageLimit(s+1))stageStart(item,s+1)
