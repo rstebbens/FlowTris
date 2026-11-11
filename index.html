@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v4.4</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v4.5</title>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:20px;background:#0c1423;color:#e8effa;font:14px system-ui,Arial}main{max-width:1250px;margin:auto}h1{margin:0;color:#6ee7b7}p{color:#b4c3d7}.bar,.stats,.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.panel,.metric{background:#19283e;border:1px solid #344860;border-radius:12px;padding:12px;margin:10px 0}.metric{flex:1;min-width:105px}.metric b{display:block;font-size:22px;color:white}button,select{background:#304b6d;color:#fff;border:1px solid #6886a7;border-radius:7px;padding:9px 12px;cursor:pointer}button:hover{background:#43688e}button:disabled{opacity:.35;cursor:not-allowed}.primary{background:#087e6b}canvas{display:block;width:100%;height:auto;background:#101b2c;border-radius:8px;touch-action:manipulation}label{display:inline-flex;align-items:center;gap:7px}input{accent-color:#6ee7b7}.hint{font-size:12px;color:#a7b9d2}.staff{display:flex;gap:12px;flex-wrap:wrap}.staff>div{display:flex;align-items:center;gap:6px}#notice{color:#fbbf24;min-height:20px}#touch{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}@media(min-width:900px){#touch{display:none}}
 
@@ -388,7 +388,22 @@ function lock(){if(!falling)return;let p=falling;for(let [x,y] of cells(p)){if(y
 placed++;completed.push(clock-p.item.created);falling=null;
 const rows=fullRows();
 if(rows.length){pendingClear=rows;flashRemaining=0.6;note(rows.length+' completed line(s)! Clearing…')}
-else note('Piece placed. Complete a horizontal line to release its value.');}
+else{
+ note('Piece placed. Complete a horizontal line to release its value.');
+ if(!auto)manualReleaseNext();
+}
+}
+// Manual placement rewards player control with immediate pull from Ready.
+// Reset the release clock only when an item is actually dispatched, avoiding
+// a second near-immediate timed release or any accumulated release credits.
+function manualReleaseNext(){
+ if(auto||finished||falling||pendingClear)return false;
+ const ready=items.find(x=>x.stage===3);
+ if(!ready)return false;
+ releaseTimer=0;
+ spawn(ready);
+ return true;
+}
 function fullRows(){
 const rows=[];
 for(let y=0;y<ROWS;y++)if(grid[y].every(Boolean))rows.push(y);
@@ -411,6 +426,7 @@ flashRemaining=0.6;
 note(clearing.length+' line(s) cleared! '+gained+' value released. '+next.length+' more line(s) ready!');
 }else{
 note(clearing.length+' line(s) cleared! '+gained+' value released.');
+if(!auto)manualReleaseNext();
 }
 }
 function move(dx,dy){if(!falling||paused||finished)return false;let p={...falling,x:falling.x+dx,y:falling.y+dy};if(valid(p)){falling=p;return true}if(dy>0)lock();return false}
