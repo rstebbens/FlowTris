@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v4.5</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flowtris v4.6</title>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:20px;background:#0c1423;color:#e8effa;font:14px system-ui,Arial}main{max-width:1250px;margin:auto}h1{margin:0;color:#6ee7b7}p{color:#b4c3d7}.bar,.stats,.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.panel,.metric{background:#19283e;border:1px solid #344860;border-radius:12px;padding:12px;margin:10px 0}.metric{flex:1;min-width:105px}.metric b{display:block;font-size:22px;color:white}button,select{background:#304b6d;color:#fff;border:1px solid #6886a7;border-radius:7px;padding:9px 12px;cursor:pointer}button:hover{background:#43688e}button:disabled{opacity:.35;cursor:not-allowed}.primary{background:#087e6b}canvas{display:block;width:100%;height:auto;background:#101b2c;border-radius:8px;touch-action:manipulation}label{display:inline-flex;align-items:center;gap:7px}input{accent-color:#6ee7b7}.hint{font-size:12px;color:#a7b9d2}.staff{display:flex;gap:12px;flex-wrap:wrap}.staff>div{display:flex;align-items:center;gap:6px}#notice{color:#fbbf24;min-height:20px}#touch{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}@media(min-width:900px){#touch{display:none}}
 
@@ -399,12 +399,15 @@ else{
 // Reset the release clock only when an item is actually dispatched, avoiding
 // a second near-immediate timed release or any accumulated release credits.
 function manualReleaseNext(){
- if(auto||finished||falling||pendingClear)return false;
+ if(auto||!run||paused||finished||falling||pendingClear)return false;
  const ready=items.find(x=>x.stage===3);
  if(!ready)return false;
- releaseTimer=0;
  spawn(ready);
  return true;
+}
+// Autopilot prioritises released product value, with FIFO for ties.
+function highestValueReady(){
+ return items.filter(x=>x.stage===3).sort((a,b)=>VALUES[b.colour]-VALUES[a.colour]||a.id-b.id)[0];
 }
 function fullRows(){
 const rows=[];
@@ -436,7 +439,7 @@ function rotate(){if(!falling||paused||finished)return;for(let offset of [0,-1,1
 function control(key){if(!$('howToModal').hidden)return;if(key==='a'||key==='A'){setAuto(true);return}if(!run||paused||finished||!falling)return;if(auto)setAuto(false);if(key==='ArrowLeft')move(-1,0);if(key==='ArrowRight')move(1,0);if(key==='ArrowUp'||key==='r'||key==='R')rotate();if(key==='ArrowDown')move(0,1);if(key==='Space'){while(falling&&move(0,1)){} }}
 document.addEventListener('keydown',e=>{if(e.target.closest('input,select,textarea,[contenteditable=true]')||!$('leaderboardModal').hidden||!$('gameOverlay').hidden)return;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space',' '].includes(e.key))e.preventDefault();control(e.key===' '?'Space':e.key)});
 document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>control(b.dataset.key));
-function setAuto(value){auto=value;autoTimer=0;updateMode();note(auto?'Autopilot enabled: production placement is automatic.':'Manual production enabled. Use arrow keys, R and Space. Press A for Autopilot.')}
+function setAuto(value){auto=value;autoTimer=0;releaseTimer=0;updateMode();note(auto?'Autopilot enabled: highest-value Ready piece released each cycle.':'Manual production: Ready pieces release immediately. Use arrows, R and Space.');if(!auto)manualReleaseNext()}
 function updateMode(){$('touch').classList.toggle('manual-hidden',auto);$('autopilot').textContent='Autopilot: '+(auto?'ON':'OFF');$('autopilot').className=auto?'primary':'';$('mode').textContent=auto?'AUTO':'MANUAL'}
 // Enumerate every rotation and landing column. Reward full lines, penalise
 // holes, column height and rough surfaces. This is a heuristic, not an oracle.
@@ -540,11 +543,16 @@ for(const item of items){if(item.stage===3){item.waitingSeconds+=dt;waitingSecon
 const fullNow=wip()>=stageLimit(0);
 if(buildWasFull&&!fullNow)note('Build capacity available again. Select another backlog item.');
 buildWasFull=fullNow;
-releaseTimer+=dt;
-// Strict, fixed release slots. A missed slot expires; no credits are banked.
-if(releaseTimer>=RELEASE_INTERVAL){
+if(auto){
+ releaseTimer+=dt;
+ // Fixed cadence, with no credits banked for missed slots.
+ if(releaseTimer>=RELEASE_INTERVAL){
   releaseTimer%=RELEASE_INTERVAL;
-  if(!falling&&!pendingClear){const ready=items.find(x=>x.stage===3);if(ready)spawn(ready)}
+  if(!falling&&!pendingClear){const ready=highestValueReady();if(ready)spawn(ready)}
+ }
+}else{
+ // Pull immediately whenever a Ready item and free production slot coexist.
+ manualReleaseNext();
 }
 if(pendingClear){flashRemaining-=dt;if(flashRemaining<=0)finishClear()}
 if(falling&&auto){autoTimer+=dt;if(autoTimer>=1.1){autoTimer=0;autoPlace()}}
@@ -570,7 +578,7 @@ const mobile=document.querySelector('.mobile-staff-grid');mobile.replaceChildren
 $('staff').textContent='Unassigned people: '+(6-total);
 $('mobileUnassigned').textContent=(6-total)+' unassigned';
 }
-function stats(){let remain=Math.ceil(ROUND_SECONDS-clock);$('time').textContent=Math.floor(remain/60)+':'+String(remain%60).padStart(2,'0');$('value').textContent=score;$('finalScoreLive').textContent=weightedScore();$('flowEfficiency').textContent=Math.round(overallEfficiency()*100)+'%';$('lines').textContent=lines;$('placed').textContent=placed;$('util').textContent=(workerTime?busyTime/workerTime*100:0).toFixed(0)+'%';$('counts').textContent=wip()+' / '+items.filter(x=>x.stage===-1).length;$('release').textContent='0:'+String(Math.max(0,Math.ceil(RELEASE_INTERVAL-releaseTimer))).padStart(2,'0');$('mode').textContent=auto?'AUTO':'MANUAL';$('lead').textContent=completed.length?(completed.reduce((a,b)=>a+b,0)/completed.length).toFixed(1)+'s':'—'}
+function stats(){let remain=Math.ceil(ROUND_SECONDS-clock);$('time').textContent=Math.floor(remain/60)+':'+String(remain%60).padStart(2,'0');$('value').textContent=score;$('finalScoreLive').textContent=weightedScore();$('flowEfficiency').textContent=Math.round(overallEfficiency()*100)+'%';$('lines').textContent=lines;$('placed').textContent=placed;$('util').textContent=(workerTime?busyTime/workerTime*100:0).toFixed(0)+'%';$('counts').textContent=wip()+' / '+items.filter(x=>x.stage===-1).length;$('release').textContent=auto?'0:'+String(Math.max(0,Math.ceil(RELEASE_INTERVAL-releaseTimer))).padStart(2,'0'):'READY';$('mode').textContent=auto?'AUTO':'MANUAL';$('lead').textContent=completed.length?(completed.reduce((a,b)=>a+b,0)/completed.length).toFixed(1)+'s':'—'}
 const regions=[{x:8,w:208,label:'BACKLOG',stage:-1},{x:226,w:208,label:'BUILD',stage:0},{x:444,w:208,label:'TEST',stage:1},{x:662,w:208,label:'DEPLOY',stage:2},{x:880,w:78,label:'READY',stage:3}];
 function drawShape(item,x,y,unit=13){for(let [dx,dy] of SHAPES[item.shape]){ctx.fillStyle=COLORS[item.colour];ctx.fillRect(x+dx*unit,y+dy*unit,unit-1,unit-1)}}
 function draw(){ctx.clearRect(0,0,1200,410);ctx.fillStyle='#101b2c';ctx.fillRect(0,0,1200,410);
