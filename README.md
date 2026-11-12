@@ -2,7 +2,7 @@
 
 **A five-minute game about flow, bottlenecks, work in progress and the difference between being busy and delivering value.**
 
-[**Play Flowtris**](https://rstebbens.github.io/flowtris/) · [**Rob Stebbens**](https://robstebbens.com/)
+[**Play Flowtris**]([https://rstebbens.github.io/flowtris/](https://rstebbens.github.io/FlowTris/)) · [**Rob Stebbens**](https://robstebbens.com/)
 
 ## How to play
 
